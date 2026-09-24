@@ -23,14 +23,27 @@
   .verdict-box { background: var(--card); border: 2px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
   .verdict-title { font-size: 20px; font-weight: bold; margin-bottom: 6px; }
   .verdict-desc { color: var(--muted); font-size: 14px; }
-  #syncStatus { font-size: 12px; color: var(--yellow); margin-bottom: 16px; }
+  .inline-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  #syncStatus { font-size: 12px; color: var(--green); margin-bottom: 12px; }
 </style>
 </head>
 <body>
 
 <div class="container">
   <h1>Live Market Trade Evaluator</h1>
-  <div id="syncStatus">Attempting to fetch live market values...</div>
+  <div id="syncStatus">Loaded active September league trade market.</div>
+
+  <!-- Quick Market Update Box -->
+  <div class="card" style="background: #172033; border-color: var(--accent);">
+    <h3 style="margin: 0 0 4px 0; color: var(--accent);">Live Market Updater</h3>
+    <p style="font-size: 13px; color: var(--muted); margin: 0 0 8px 0;">Add new players or overwrite prices as your league trades.</p>
+    <div class="inline-form">
+      <input type="text" id="newPlayerName" placeholder="Player Name" list="playerList">
+      <input type="number" id="newPlayerVal" placeholder="FAAB" min="0">
+      <button type="button" onclick="saveCustomPlayer()">Update Value</button>
+    </div>
+    <div id="saveConfirm" style="color: var(--green); font-size: 13px; margin-top: 6px; display: none;">Saved!</div>
+  </div>
 
   <div class="grid">
     <!-- Side A -->
@@ -40,7 +53,7 @@
       <button type="button" class="secondary" onclick="addPlayerRow('A')">+ Add Player</button>
       <div style="margin-top: 12px;">
         <label>FAAB Included: <input type="number" id="teamA_faab" min="0" value="0" oninput="calculate()"></label>
-        <div class="total-badge">Package Value: <span id="teamA_total">0</span></div>
+        <div class="total-badge">Total Package: <span id="teamA_total">0</span></div>
       </div>
     </div>
 
@@ -51,15 +64,16 @@
       <button type="button" class="secondary" onclick="addPlayerRow('B')">+ Add Player</button>
       <div style="margin-top: 12px;">
         <label>FAAB Included: <input type="number" id="teamB_faab" min="0" value="0" oninput="calculate()"></label>
-        <div class="total-badge">Package Value: <span id="teamB_total">0</span></div>
+        <div class="total-badge">Total Package: <span id="teamB_total">0</span></div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <label style="cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+  <div class="card" style="border-color: var(--yellow);">
+    <label style="cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; color: var(--yellow);">
       <input type="checkbox" id="brinkCheck" onchange="calculate()">
-      Is either team on the Brink of elimination? (Expands tolerance from 20% to 30%)
+      Is either team on the Brink (Bottom 3)? 
+      <span style="font-weight: normal; font-size: 13px; color: var(--muted);">- Expands allowed gap from 20% to 30%.</span>
     </label>
   </div>
 
@@ -72,18 +86,60 @@
 <datalist id="playerList"></datalist>
 
 <script>
-let liveMarketValues = {};
+// Active market baseline calibrated from your September 1-23 sales
+const defaultMarketValues = {
+  "Kenneth Walker III": 280,
+  "Justin Jefferson": 145,
+  "Chase Brown": 140,
+  "CeeDee Lamb": 135,
+  "De'Von Achane": 135,
+  "Javonte Williams": 128,
+  "Jahmyr Gibbs": 115,
+  "Kyren Williams": 100,
+  "Tetairoa McMillan": 82,
+  "Tee Higgins": 70,
+  "Garrett Wilson": 65,
+  "Ladd McConkey": 62,
+  "Travis Etienne Jr.": 48,
+  "Jaylen Waddle": 46,
+  "A.J. Brown": 35,
+  "Aaron Jones": 34,
+  "DK Metcalf": 32,
+  "Courtland Sutton": 30,
+  "Rhamondre Stevenson": 27,
+  "Jalen Coker": 25,
+  "Alec Pierce": 25,
+  "Keon Coleman": 20,
+  "Jordan Addison": 15,
+  "Tyler Allgeier": 14,
+  "Denzel Boston": 11,
+  "Drake Maye": 10,
+  "Kyle Pitts": 8,
+  "Jake Ferguson": 7,
+  "Dak Prescott": 4,
+  "Mark Andrews": 3,
+  "Justin Herbert": 2
+};
 
-// Fetch auto-generated values from GitHub Actions
+let liveMarketValues = { ...defaultMarketValues };
+
+// Load any local overrides saved from this device
+const storedValues = localStorage.getItem('guillotine_live_vals');
+if (storedValues) {
+  liveMarketValues = { ...liveMarketValues, ...JSON.parse(storedValues) };
+}
+
+// Check if external GitHub sync file exists
 fetch('market_prices.json')
-  .then(response => response.json())
+  .then(res => res.json())
   .then(data => {
-    liveMarketValues = data;
-    document.getElementById('syncStatus').innerHTML = '🟢 Synced with live market data.';
+    liveMarketValues = { ...liveMarketValues, ...data };
+    document.getElementById('syncStatus').textContent = '🟢 Synced with GitHub market_prices.json';
     populateDataList();
   })
-  .catch(err => {
-    document.getElementById('syncStatus').innerHTML = '🟡 Operating in manual mode (awaiting server sync).';
+  .catch(() => {
+    // If no external JSON file, silently runs on default league data
+    populateDataList();
   });
 
 function populateDataList() {
@@ -94,6 +150,28 @@ function populateDataList() {
     opt.value = p;
     datalist.appendChild(opt);
   });
+}
+
+function saveCustomPlayer() {
+  const nameInput = document.getElementById('newPlayerName');
+  const valInput = document.getElementById('newPlayerVal');
+  const name = nameInput.value.trim();
+  const val = Number(valInput.value);
+
+  if (!name || isNaN(val)) return;
+
+  liveMarketValues[name] = val;
+  localStorage.setItem('guillotine_live_vals', JSON.stringify(liveMarketValues));
+  populateDataList();
+
+  const confirm = document.getElementById('saveConfirm');
+  confirm.style.display = 'block';
+  confirm.textContent = `Saved ${name} at $${val} FAAB!`;
+  setTimeout(() => confirm.style.display = 'none', 2500);
+
+  nameInput.value = '';
+  valInput.value = '';
+  calculate();
 }
 
 function addPlayerRow(side) {
@@ -110,7 +188,7 @@ function addPlayerRow(side) {
 
 function onPlayerInput(input, side) {
   const valInput = input.parentElement.querySelector('input[type="number"]');
-  if (liveMarketValues[input.value]) {
+  if (liveMarketValues[input.value] !== undefined) {
     valInput.value = liveMarketValues[input.value];
   }
   calculate();
@@ -135,29 +213,42 @@ function calculate() {
   const isBrink = document.getElementById('brinkCheck').checked;
   const vTitle = document.getElementById('verdictTitle');
   const vDesc = document.getElementById('verdictDesc');
+  const vBox = document.getElementById('verdictBox');
 
-  if (totalA === 0 && totalB === 0) return;
+  if (totalA === 0 && totalB === 0) {
+    vTitle.textContent = "Enter Assets to Evaluate";
+    vTitle.style.color = "var(--text)";
+    vDesc.textContent = "Mathematical evaluation pending.";
+    vBox.style.borderColor = "var(--border)";
+    return;
+  }
 
   if (diffPct <= 20) {
-    vTitle.textContent = "Approved — Within Normal Variance";
+    vTitle.textContent = "APPROVED — Fair Market Trade";
     vTitle.style.color = "var(--green)";
-    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}% (League limit is 20%). Valid market trade.`;
+    vBox.style.borderColor = "var(--green)";
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}% (Within 20% standard limit).`;
   } else if (diffPct <= 30 && isBrink) {
-    vTitle.textContent = "Approved — Valid Brink Premium";
+    vTitle.textContent = "APPROVED — Brink Survival Premium";
     vTitle.style.color = "var(--yellow)";
-    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Exceeds standard 20%, but allowed under 30% survival rules.`;
+    vBox.style.borderColor = "var(--yellow)";
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}% (Allowed under 30% survival zone rule).`;
   } else if (diffPct <= 30 && !isBrink) {
-    vTitle.textContent = "Review Required — Value Disparity";
+    vTitle.textContent = "REVIEW — Disparity Without Danger";
     vTitle.style.color = "var(--yellow)";
-    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Trade is lopsided and requires the Brink toggle to be legal.`;
+    vBox.style.borderColor = "var(--yellow)";
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Trade is lopsided; requires team in bottom 3.`;
   } else {
-    vTitle.textContent = "Way Off — Flag for Veto";
+    vTitle.textContent = "WAY OFF — Flag for Veto";
     vTitle.style.color = "var(--red)";
-    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Exceeds absolute maximum 30% survival threshold.`;
+    vBox.style.borderColor = "var(--red)";
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Exceeds absolute 30% survival threshold.`;
   }
 }
 
-addPlayerRow('A'); addPlayerRow('B');
+populateDataList();
+addPlayerRow('A');
+addPlayerRow('B');
 </script>
 </body>
 </html>
