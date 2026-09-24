@@ -3,56 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Guillotine League Trade Evaluator</title>
+<title>Live Guillotine Trade Evaluator</title>
 <style>
-  :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --border: #334155;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --accent: #3b82f6;
-    --green: #22c55e;
-    --yellow: #eab308;
-    --red: #ef4444;
-  }
-  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  :root { --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #f8fafc; --muted: #94a3b8; --accent: #3b82f6; --green: #22c55e; --yellow: #eab308; --red: #ef4444; }
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   body { background: var(--bg); color: var(--text); margin: 0; padding: 16px; }
   .container { max-width: 960px; margin: 0 auto; }
-  h1, h2, h3 { margin-top: 0; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
   @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
   .player-row { display: flex; gap: 8px; margin-bottom: 8px; }
   input, select, button { background: #0b1120; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 14px; }
-  input:focus, select:focus { outline: none; border-color: var(--accent); }
-  input[type="text"] { flex: 2; }
-  input[type="number"] { width: 85px; }
-  button { cursor: pointer; background: var(--accent); border: none; font-weight: 600; }
-  button:hover { opacity: 0.9; }
+  input[type="text"] { flex: 2; } input[type="number"] { width: 85px; }
+  button { cursor: pointer; background: var(--accent); border: none; font-weight: 600; color: white; }
   button.secondary { background: var(--border); }
   button.danger { background: #7f1d1d; color: #fca5a5; }
-  .meta-inputs { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-  .total-badge { font-size: 14px; font-weight: 600; color: var(--muted); margin-top: 8px; }
-  .total-badge span { color: var(--text); font-size: 17px; }
-  .verdict-box { background: var(--card); border: 2px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; text-align: center; }
+  .total-badge { font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .total-badge span { color: var(--text); font-size: 17px; font-weight: bold; }
+  .verdict-box { background: var(--card); border: 2px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
   .verdict-title { font-size: 20px; font-weight: bold; margin-bottom: 6px; }
   .verdict-desc { color: var(--muted); font-size: 14px; }
-  .table-scroll { overflow-x: auto; max-height: 420px; border: 1px solid var(--border); border-radius: 6px; }
-  table { width: 100%; border-collapse: collapse; min-width: 600px; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
-  th { color: var(--muted); font-weight: 600; background: #172033; position: sticky; top: 0; }
-  .badge { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-  .badge-green { background: #14532d; color: #86efac; }
-  .badge-yellow { background: #713f12; color: #fde047; }
-  .badge-red { background: #7f1d1d; color: #fca5a5; }
+  #syncStatus { font-size: 12px; color: var(--yellow); margin-bottom: 16px; }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Guillotine Trade Evaluator</h1>
-  <p style="color: var(--muted); margin-bottom: 16px;">Calibrated against 37 real league sales & 200 FAAB baseline.</p>
+  <h1>Live Market Trade Evaluator</h1>
+  <div id="syncStatus">Attempting to fetch live market values...</div>
 
   <div class="grid">
     <!-- Side A -->
@@ -60,11 +38,9 @@
       <h3>Team A Assets</h3>
       <div id="sideAPlayers"></div>
       <button type="button" class="secondary" onclick="addPlayerRow('A')">+ Add Player</button>
-      <div class="meta-inputs">
-        <label>Team A FAAB Included:
-          <input type="number" id="teamA_faab" min="0" max="500" value="0" oninput="calculate()">
-        </label>
-        <div class="total-badge">Package Value: <span id="teamA_total">0</span> FAAB</div>
+      <div style="margin-top: 12px;">
+        <label>FAAB Included: <input type="number" id="teamA_faab" min="0" value="0" oninput="calculate()"></label>
+        <div class="total-badge">Package Value: <span id="teamA_total">0</span></div>
       </div>
     </div>
 
@@ -73,254 +49,115 @@
       <h3>Team B Assets</h3>
       <div id="sideBPlayers"></div>
       <button type="button" class="secondary" onclick="addPlayerRow('B')">+ Add Player</button>
-      <div class="meta-inputs">
-        <label>Team B FAAB Included:
-          <input type="number" id="teamB_faab" min="0" max="500" value="0" oninput="calculate()">
-        </label>
-        <div class="total-badge">Package Value: <span id="teamB_total">0</span> FAAB</div>
+      <div style="margin-top: 12px;">
+        <label>FAAB Included: <input type="number" id="teamB_faab" min="0" value="0" oninput="calculate()"></label>
+        <div class="total-badge">Package Value: <span id="teamB_total">0</span></div>
       </div>
     </div>
   </div>
 
-  <div class="card" style="margin-bottom: 16px;">
-    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+  <div class="card">
+    <label style="cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px;">
       <input type="checkbox" id="brinkCheck" onchange="calculate()">
-      Is either team on the Brink of elimination this week? (Survival Mode)
+      Is either team on the Brink of elimination? (Expands tolerance from 20% to 30%)
     </label>
   </div>
 
   <div class="verdict-box" id="verdictBox">
     <div class="verdict-title" id="verdictTitle">Enter Assets to Evaluate</div>
-    <div class="verdict-desc" id="verdictDesc">Evaluates whether trade is consistent with league trade history.</div>
-    <div style="margin-top: 12px;">
-      <button type="button" onclick="logCurrentTrade()">+ Log Trade to History</button>
-    </div>
-  </div>
-
-  <!-- History Ledger -->
-  <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-      <h3>League Trade History (37 Sales Logged)</h3>
-      <button class="secondary" style="font-size: 11px;" onclick="resetToDefaultHistory()">Reset Default Sales</button>
-    </div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Trade</th>
-            <th>Side A Gives</th>
-            <th>Side B Gives</th>
-            <th>Net Gap</th>
-            <th>Ruling</th>
-          </tr>
-        </thead>
-        <tbody id="historyBody"></tbody>
-      </table>
-    </div>
+    <div class="verdict-desc" id="verdictDesc">Mathematical evaluation pending.</div>
   </div>
 </div>
 
 <datalist id="playerList"></datalist>
 
 <script>
-// Market baseline calibrated directly from your 37 league sales
-const playerValuations = {
-  "Christian McCaffrey": 145, "CeeDee Lamb": 140, "Chase Brown": 140, "Justin Jefferson": 135,
-  "De'Von Achane": 135, "Javonte Williams": 128, "Jahmyr Gibbs": 110, "AJ Brown": 95,
-  "Josh Allen": 100, "Lamar Jackson": 95, "Kyren Williams": 80, "Tee Higgins": 70,
-  "Kenneth Walker": 70, "Garrett Wilson": 65, "Ladd McConkey": 62, "DK Metcalf": 55,
-  "Jaylen Waddle": 55, "Travis Etienne": 48, "Courtland Sutton": 35, "Aaron Jones": 34,
-  "Rhamondre Stevenson": 27, "Jalen Coker": 25, "Alec Pierce": 25, "Tyler Warren": 25,
-  "Keon Coleman": 20, "Jordan Addison": 15, "Tyler Allgeier": 14, "Denzel Boston": 11,
-  "Drake Maye": 10, "Brian Thomas Jr.": 10, "Michael Pittman Jr.": 10, "Kyle Pitts": 8,
-  "Jake Ferguson": 7, "Dak Prescott": 4, "Pat Freiermuth": 4, "Justin Herbert": 2, "Caleb Williams": 2
-};
+let liveMarketValues = {};
 
-const defaultHistoricalSales = [
-  { sideA: "Kenneth Walker, Jaylen Waddle", sideB: "DK Metcalf, $294 FAAB", diff: 184, status: "Survival Overpay" },
-  { sideA: "CMC, JSN", sideB: "Jahmyr Gibbs, Jayden Reed, $170 FAAB", diff: 155, status: "Brink Blockbuster" },
-  { sideA: "Chase Brown", sideB: "$140 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "De'Von Achane", sideB: "$135 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "CeeDee Lamb", sideB: "Cade Otton, $135 FAAB", diff: 5, status: "Market Sale" },
-  { sideA: "Javonte Williams", sideB: "$128 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Chase Brown", sideB: "Tyler Warren, $100 FAAB", diff: 15, status: "Market Sale" },
-  { sideA: "Kyren Williams, Jahmyr Gibbs", sideB: "$100 FAAB", diff: 90, status: "Survival Clearance" },
-  { sideA: "AJ Brown, Justin Jefferson", sideB: "$180 FAAB", diff: 50, status: "Liquidation Sale" },
-  { sideA: "Tee Higgins", sideB: "$70 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Garrett Wilson", sideB: "$65 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Ladd McConkey", sideB: "$62 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Travis Etienne", sideB: "$48 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Brian Thomas Jr., Courtland Sutton", sideB: "$44 FAAB", diff: 1, status: "Market Sale" },
-  { sideA: "Aaron Jones", sideB: "$34 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "DK Metcalf", sideB: "$32 FAAB", diff: 23, status: "Market Sale" },
-  { sideA: "Rhamondre Stevenson", sideB: "$27 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Jalen Coker", sideB: "$25 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Alec Pierce", sideB: "$25 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Keon Coleman", sideB: "$20 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Jordan Addison", sideB: "$15 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Tyler Allgeier", sideB: "$14 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Denzel Boston", sideB: "$11 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Drake Maye", sideB: "$10 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Brian Thomas Jr.", sideB: "$10 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Michael Pittman Jr.", sideB: "$10 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Kyle Pitts", sideB: "$8 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Jake Ferguson", sideB: "$7 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Dak Prescott", sideB: "$4 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Tyler Allgeier", sideB: "$3 FAAB", diff: 11, status: "Market Sale" },
-  { sideA: "Justin Herbert", sideB: "$2 FAAB", diff: 0, status: "Market Sale" },
-  { sideA: "Mark Andrews", sideB: "Pat Freiermuth, $3 FAAB", diff: 30, status: "Market Sale" },
-  { sideA: "Justin Herbert", sideB: "Caleb Williams", diff: 0, status: "Player Swap" }
-];
+// Fetch auto-generated values from GitHub Actions
+fetch('market_prices.json')
+  .then(response => response.json())
+  .then(data => {
+    liveMarketValues = data;
+    document.getElementById('syncStatus').innerHTML = '🟢 Synced with live market data.';
+    populateDataList();
+  })
+  .catch(err => {
+    document.getElementById('syncStatus').innerHTML = '🟡 Operating in manual mode (awaiting server sync).';
+  });
 
-// Populate datalist
-const datalist = document.getElementById('playerList');
-for (const p in playerValuations) {
-  const opt = document.createElement('option');
-  opt.value = p;
-  datalist.appendChild(opt);
+function populateDataList() {
+  const datalist = document.getElementById('playerList');
+  datalist.innerHTML = '';
+  Object.keys(liveMarketValues).sort().forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    datalist.appendChild(opt);
+  });
 }
 
-function addPlayerRow(side, name = '', val = '') {
+function addPlayerRow(side) {
   const container = document.getElementById(`side${side}Players`);
   const div = document.createElement('div');
   div.className = 'player-row';
   div.innerHTML = `
-    <input type="text" list="playerList" placeholder="Player Name" value="${name}" oninput="onPlayerNameInput(this, '${side}')">
-    <input type="number" placeholder="Val" value="${val}" min="0" max="300" oninput="calculate()">
+    <input type="text" list="playerList" placeholder="Player Name" oninput="onPlayerInput(this, '${side}')">
+    <input type="number" placeholder="Val" value="0" min="0" oninput="calculate()">
     <button type="button" class="danger" onclick="this.parentElement.remove(); calculate();">×</button>
   `;
   container.appendChild(div);
-  calculate();
 }
 
-function onPlayerNameInput(input, side) {
+function onPlayerInput(input, side) {
   const valInput = input.parentElement.querySelector('input[type="number"]');
-  if (playerValuations[input.value]) {
-    valInput.value = playerValuations[input.value];
+  if (liveMarketValues[input.value]) {
+    valInput.value = liveMarketValues[input.value];
   }
   calculate();
 }
 
-function getSideTotal(side) {
-  const rows = document.querySelectorAll(`#side${side}Players .player-row`);
-  let total = 0;
-  rows.forEach(r => {
-    total += Number(r.querySelector('input[type="number"]').value) || 0;
-  });
-  total += Number(document.getElementById(`team${side}_faab`).value) || 0;
-  return total;
-}
-
-let currentEvaluation = null;
-
 function calculate() {
+  const getSideTotal = (side) => {
+    let total = Number(document.getElementById(`team${side}_faab`).value) || 0;
+    document.querySelectorAll(`#side${side}Players input[type="number"]`).forEach(i => total += Number(i.value) || 0);
+    return total;
+  };
+
   const totalA = getSideTotal('A');
   const totalB = getSideTotal('B');
   document.getElementById('teamA_total').textContent = totalA;
   document.getElementById('teamB_total').textContent = totalB;
 
+  const maxVal = Math.max(totalA, totalB);
   const diff = Math.abs(totalA - totalB);
+  const diffPct = maxVal > 0 ? (diff / maxVal) * 100 : 0;
+  
   const isBrink = document.getElementById('brinkCheck').checked;
   const vTitle = document.getElementById('verdictTitle');
   const vDesc = document.getElementById('verdictDesc');
 
-  if (totalA === 0 && totalB === 0) {
-    vTitle.textContent = "Enter Assets to Evaluate";
-    vTitle.style.color = "var(--text)";
-    vDesc.textContent = "Evaluates whether trade is consistent with league trade history.";
-    currentEvaluation = null;
-    return;
-  }
+  if (totalA === 0 && totalB === 0) return;
 
-  let status = "";
-  let badgeClass = "";
-
-  if (diff <= 25) {
-    status = "Consistent with Regular Trades";
-    badgeClass = "badge-green";
+  if (diffPct <= 20) {
+    vTitle.textContent = "Approved — Within Normal Variance";
     vTitle.style.color = "var(--green)";
-    vDesc.textContent = `Gap is only ${diff} FAAB. Within normal league market variance.`;
-  } else if (diff <= 65 && isBrink) {
-    status = "Approved — Valid Brink Overpay";
-    badgeClass = "badge-yellow";
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}% (League limit is 20%). Valid market trade.`;
+  } else if (diffPct <= 30 && isBrink) {
+    vTitle.textContent = "Approved — Valid Brink Premium";
     vTitle.style.color = "var(--yellow)";
-    vDesc.textContent = `Gap is ${diff} FAAB. Justified by elimination desperation. Matches league precedent.`;
-  } else if (diff <= 65 && !isBrink) {
-    status = "Review Recommended — Disparity Without Danger";
-    badgeClass = "badge-yellow";
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Exceeds standard 20%, but allowed under 30% survival rules.`;
+  } else if (diffPct <= 30 && !isBrink) {
+    vTitle.textContent = "Review Required — Value Disparity";
     vTitle.style.color = "var(--yellow)";
-    vDesc.textContent = `Gap is ${diff} FAAB. Noticeably off from market value without survival pressure.`;
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Trade is lopsided and requires the Brink toggle to be legal.`;
   } else {
-    status = "Way Off — Flag for Veto";
-    badgeClass = "badge-red";
+    vTitle.textContent = "Way Off — Flag for Veto";
     vTitle.style.color = "var(--red)";
-    vDesc.textContent = `Gap is ${diff} FAAB. Far exceeds historical market benchmarks; potential collusion/dump.`;
-  }
-
-  vTitle.textContent = status;
-  currentEvaluation = { totalA, totalB, diff, status, badgeClass };
-}
-
-function getPackageSummary(side) {
-  const rows = document.querySelectorAll(`#side${side}Players .player-row`);
-  const names = [];
-  rows.forEach(r => {
-    const n = r.querySelector('input[type="text"]').value;
-    const v = r.querySelector('input[type="number"]').value;
-    if (n) names.push(`${n} (${v})`);
-  });
-  const faab = Number(document.getElementById(`team${side}_faab`).value);
-  if (faab > 0) names.push(`$${faab} FAAB`);
-  return names.length ? names.join(', ') : 'None';
-}
-
-function getHistory() {
-  const stored = localStorage.getItem('guillotine_history_v2');
-  if (stored) return JSON.parse(stored);
-  return defaultHistoricalSales;
-}
-
-function logCurrentTrade() {
-  if (!currentEvaluation) return;
-  const history = getHistory();
-  const trade = {
-    sideA: getPackageSummary('A'),
-    sideB: getPackageSummary('B'),
-    diff: currentEvaluation.diff,
-    status: currentEvaluation.status
-  };
-  history.unshift(trade);
-  localStorage.setItem('guillotine_history_v2', JSON.stringify(history));
-  renderHistory();
-}
-
-function resetToDefaultHistory() {
-  if (confirm("Reset transaction ledger to the 37 original league sales?")) {
-    localStorage.removeItem('guillotine_history_v2');
-    renderHistory();
+    vDesc.textContent = `Variance is ${diffPct.toFixed(1)}%. Exceeds absolute maximum 30% survival threshold.`;
   }
 }
 
-function renderHistory() {
-  const history = getHistory();
-  const tbody = document.getElementById('historyBody');
-  tbody.innerHTML = '';
-  history.forEach((t, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>#${i + 1}</td>
-      <td>${t.sideA}</td>
-      <td>${t.sideB}</td>
-      <td>${t.diff} FAAB</td>
-      <td><span class="badge ${t.diff <= 25 ? 'badge-green' : (t.diff <= 65 ? 'badge-yellow' : 'badge-red')}">${t.status.split('—')[0]}</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-addPlayerRow('A');
-addPlayerRow('B');
-renderHistory();
+addPlayerRow('A'); addPlayerRow('B');
 </script>
 </body>
 </html>
